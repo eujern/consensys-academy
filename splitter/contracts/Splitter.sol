@@ -2,16 +2,16 @@ pragma solidity ^0.4.4;
 
 contract Splitter {
   address public owner;
-	address public alice;
+  address public alice;
   address public bob;
   address public carol;
 
-	function Splitter(address _alice, address _bob, address _carol) payable {
+  function Splitter(address _alice, address _bob, address _carol) payable {
     owner = msg.sender;
-		alice = _alice;
+    alice = _alice;
     bob = _bob;
     carol = _carol;
-	}
+  }
 
   function killMe() {
     require(msg.sender == owner);
