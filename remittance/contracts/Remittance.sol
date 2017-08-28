@@ -58,12 +58,12 @@ contract Remittance {
 
   // canceling the deposit
   function withdraw(address collector) {
-    //require(hasExpired(collector));
+    require(hasExpired(collector));
     uint amount = deposits[collector].amount;
     address depositer = deposits[collector].depositer;
     require(msg.sender == depositer);
     delete deposits[collector];
-    // msg.sender.transfer(amount);
+    msg.sender.transfer(amount);
     LogWithdraw(depositer, amount);
   }
 
