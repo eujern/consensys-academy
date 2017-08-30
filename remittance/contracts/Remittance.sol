@@ -1,6 +1,14 @@
 pragma solidity ^0.4.4;
 
-contract Remittance {
+contract Owned {
+  address owner;
+
+  function Owned() {
+    owner = msg.sender;
+  }
+}
+
+contract Remittance is Owned {
   struct Deposit {
     address depositer;
     bytes32 hashedPassword;
@@ -8,14 +16,13 @@ contract Remittance {
     uint expiration;
   }
 
-  address owner;
   uint maxDuration;
   uint commission;  // per transaction
   uint commissionBalance;  // total collected
-	mapping (address => Deposit) deposits;
+	mapping (bytes32 => Deposit) deposits;
 
 	event LogDeposit(address indexed depositer,
-                   address indexed collector,
+                   bytes32 indexed hashedCollector,
                    bytes32 hashedPassword,
                    uint amount,
                    uint duration);
@@ -24,7 +31,6 @@ contract Remittance {
   event LogRetrieveCommission(uint amount);
 
 	function Remittance(uint _commission, uint _maxDuration) {
-    owner = msg.sender;
     commission = _commission;
     maxDuration = _maxDuration;
 	}
@@ -35,34 +41,42 @@ contract Remittance {
     selfdestruct(owner);
   }
 
-  function deposit(address collector, bytes32 hashedPassword, uint duration)
+  function deposit(bytes32 hashedCollector, bytes32 hashedPassword, uint duration)
     payable
   {
     require(duration <= maxDuration);
     require(msg.value > 0);
-    deposits[collector] = Deposit(msg.sender, hashedPassword, msg.value - commission, block.number + duration);
+    require(msg.value > commission);
+    deposits[hashedCollector] = Deposit({
+      depositer: msg.sender,
+      hashedPassword: hashedPassword,
+      amount: msg.value - commission,
+      expiration: block.number + duration
+    });
     commissionBalance += commission;
-    LogDeposit(msg.sender, collector, hashedPassword, msg.value - commission, duration);
+    LogDeposit(msg.sender, hashedCollector, hashedPassword, msg.value - commission, duration);
   }
 
   // redeeming the deposit
   function collect(string password) {
-    require(!hasExpired(msg.sender));
-    require(deposits[msg.sender].depositer != 0);
-    require(hashPassword(password) == deposits[msg.sender].hashedPassword);
-    uint256 amount = deposits[msg.sender].amount;
-    delete deposits[msg.sender];
+    bytes32 hashedCollector = hash(msg.sender);
+    require(!hasExpired(hashedCollector));
+    require(deposits[hashedCollector].depositer != 0);
+    require(hash(password) == deposits[hashedCollector].hashedPassword);
+    uint256 amount = deposits[hashedCollector].amount;
+    delete deposits[hashedCollector];
     msg.sender.transfer(amount);
     LogCollect(msg.sender, amount);
   }
 
   // canceling the deposit
   function withdraw(address collector) {
-    require(hasExpired(collector));
-    uint amount = deposits[collector].amount;
-    address depositer = deposits[collector].depositer;
+    hashedCollector = hash(collector);
+    require(hasExpired(hashedCollector));
+    uint amount = deposits[hashedCollector].amount;
+    address depositer = deposits[hashedCollector].depositer;
     require(msg.sender == depositer);
-    delete deposits[collector];
+    delete deposits[hashedCollector];
     msg.sender.transfer(amount);
     LogWithdraw(depositer, amount);
   }
@@ -75,14 +89,11 @@ contract Remittance {
     LogRetrieveCommission(amount);
   }
 
-  function hashPassword(string password) constant returns(bytes32 hashedPassword) {
+  function hash(string password) constant returns(bytes32 hashedPassword) {
     return keccak256(password);
   }
 
-  function hasExpired(address collector) constant returns(bool expired){
-    if (deposits[collector].depositer == 0) {
-      return false;
-    }
-    return block.number > deposits[collector].expiration;
+  function hasExpired(address hashedCollector) constant returns(bool expired){
+    return block.number > deposits[hashedCollector].expiration;
   }
 }
