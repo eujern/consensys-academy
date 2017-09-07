@@ -1,5 +1,5 @@
-var Paywall = artifacts.require("./Paywall.sol");
+var Hub = artifacts.require("./Hub.sol");
 
 module.exports = function(deployer) {
-  deployer.deploy(Paywall);
+  deployer.deploy(Hub);
 };

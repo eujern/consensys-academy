@@ -21,6 +21,7 @@ contract Hub is Stoppable {
 
   function Hub(uint _avgBlockTime) {
     avgBlockTime = _avgBlockTime;
+    paywalls.length = 0;
   }
 
   function updateAvgBlockTime(uint _avgBlockTime)
